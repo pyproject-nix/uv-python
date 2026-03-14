@@ -121,7 +121,9 @@ stdenv.mkDerivation {
   '';
 
   passthru = {
-    interpreter = "${self}/bin/python";
+    interpreter =
+      if major == "3" then "${self}/bin/python3"
+      else "${self}/bin/python";
     inherit implementation pythonVersion;
     libPrefix = "python${pythonVersion}";
     sourceVersion = {
