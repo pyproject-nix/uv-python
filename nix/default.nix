@@ -138,7 +138,7 @@ stdenv.mkDerivation {
       if implementation == "cpython" then [
         "abi3"
         "none"
-        "cp${major}${minor}${lib.optionalString (lib.hasPrefix "freethreaded" meta.variant) "t"}"
+        "cp${major}${minor}${lib.optionalString (meta.variant != null && lib.hasPrefix "freethreaded" meta.variant) "t"}"
       ] else if implementation == "pypy" then [
         "none"
         "pypy${lib.concatStrings (lib.take 2 (lib.splitString "." pythonVersion))}_pp${major}${minor}"
