@@ -54,6 +54,9 @@ meta:
   self,
   makeBinaryWrapper,
   python3,
+  pythonManylinuxPackages,
+  libxft,
+  zlib,
 }:
 let
   implementation = meta.name;
@@ -61,6 +64,10 @@ let
   minor = toString meta.minor;
   patch = toString meta.patch;
   pythonVersion = "${major}.${minor}";
+
+  # Patchelf breaks the ELFs that are shipped by python-build-standalone for some reason.
+  # If we can't patch the Python interpreter's ELF interpreter we can instead wrap & hard-code it.
+  hackAutoPatchelf = implementation == "cpython" && meta.libc == "gnu";
 in
 stdenv.mkDerivation {
   pname = meta.name;
@@ -85,11 +92,24 @@ stdenv.mkDerivation {
   nativeBuildInputs = [
     zstd
     python3
-  ];
+  ]
+    ++ lib.optional (!stdenv.isDarwin) autoPatchelfHook;
 
   buildInputs = [
     libxcrypt-legacy
-  ];
+  ]
+    ++ lib.optional (implementation == "graalpy") zlib
+    ++ lib.optional (implementation == "pypy") libxft
+  ;
+
+  ${if hackAutoPatchelf then "postFixup" else null} = ''
+    python3 ${./fixup.py}
+    autoPatchelf $out/lib
+    for bin in $out/bin/.*-wrapped; do
+      patchelf --add-rpath ${lib.makeLibraryPath [ libxcrypt-legacy ]} $bin
+    done
+  '';
+  ${if hackAutoPatchelf then "dontAutoPatchelf" else null} = true;
 
   installPhase = ''
     if test -e install; then
@@ -98,14 +118,6 @@ stdenv.mkDerivation {
       mkdir $out
       mv * $out
     fi
-  '';
-
-  # Apply a "fixup" script that creates an interpreter wrapper.
-  #
-  # Patchelf breaks the ELFs that are shipped by python-build-standalone for some reason.
-  # If we can't patch the Python interpreter's ELF interpreter we can instead wrap & hard-code it.
-  postFixup = lib.optionalString (!stdenv.isDarwin) ''
-    python3 ${./fixup.py}
   '';
 
   passthru = {
@@ -142,19 +154,6 @@ stdenv.mkDerivation {
     isPy3k = major == "3";
     isPy27 = major == "2" && minor == "7";
     isPy3 = major == "3";
-    isPy35 = pythonVersion == "3.5";
-    isPy36 = pythonVersion == "3.6";
-    isPy37 = pythonVersion == "3.7";
-    isPy38 = pythonVersion == "3.8";
-    isPy39 = pythonVersion == "3.9";
-    isPy310 = pythonVersion == "3.10";
-    isPy311 = pythonVersion == "3.11";
-    isPy312 = pythonVersion == "3.12";
-    isPy313 = pythonVersion == "3.13";
-    isPy314 = pythonVersion == "3.14";
-    isPy315 = pythonVersion == "3.15";
-    isPy316 = pythonVersion == "3.16";
-    isPy317 = pythonVersion == "3.17";
     isPyPy = implementation == "pypy";
   };
 }
