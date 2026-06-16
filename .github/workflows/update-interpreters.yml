@@ -1,0 +1,35 @@
+name: Update interpreters
+
+on:
+  schedule:
+    - cron: "19 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-interpreters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run bump script
+        working-directory: third-party
+        run: bash ./bump.sh
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "Bump interpreters"
+          title: "Bump interpreters"
+          body: |
+            Automated update of `third-party/download-metadata.json` from
+            [astral-sh/uv](https://github.com/astral-sh/uv/blob/main/crates/uv-python/download-metadata.json).
+
+            Opened by the `.github/workflows/update-interpreters.yml` workflow.
+          branch: auto-update/interpreters
+          delete-branch: true
+          add-paths: |
+            third-party/download-metadata.json
